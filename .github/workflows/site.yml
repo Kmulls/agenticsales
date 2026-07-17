@@ -1,0 +1,53 @@
+name: Import and deploy site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import site from StateSide-Training branch (first run only)
+        run: |
+          if [ ! -f index.html ]; then
+            git clone --depth 1 --branch claude/landing-page-54i2jb https://github.com/Kmulls/StateSide-Training.git /tmp/src
+            rsync -a --exclude '.git' --exclude '.github' /tmp/src/ .
+            printf '%s\n' \
+              '# Repo guardrails — READ FIRST' \
+              '' \
+              'This repo hosts the agenticsales.com site — and nothing else.' \
+              'One repo, one project, one domain: agenticsales.com only.' \
+              'Our House / mytcmusic.com lives in Kmulls/StateSide-Training — never here.' \
+              'Before touching GitHub Pages, check the existing Pages config and custom domain first.' \
+              > CLAUDE.md
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "Import agenticsales site into its own repo"
+            git push
+          fi
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
